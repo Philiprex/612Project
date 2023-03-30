@@ -1,0 +1,6 @@
+---
+title: "612 Project"
+author: "Philip Eigen"
+date: "`r Sys.Date()`"
+output: html_document
+---
