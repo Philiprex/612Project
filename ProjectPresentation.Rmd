@@ -1,0 +1,90 @@
+---
+title: "Data 412/612 Project"
+author: "Philip Eigen & Anna Livingstone"
+date: "2023-04-21"
+output: ioslides_presentation
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+```{r message=F, warning=F}
+library(tidyverse)
+library(fastDummies)
+library(patchwork)
+library(plotly)
+library(gapminder)
+library(DT)
+library(ggthemes)
+data <- read.csv("C:/Users/18582/OneDrive/Desktop/DATA 412/FinalProject/cardetailsv4.csv")
+```
+
+## Dataset
+For this project, we looked at how a number of variables affect sale price of a used car between individuals. We used a dataset from Kaggle that has about 2,000 observations. The original data for this project can be found [here](https://www.kaggle.com/datasets/nehalbirla/vehicle-dataset-from-cardekho?select=car+details+v4.csv).
+
+## Data Cleaning
+
+We have to do a few things to clean the data and extract the information we want. First we get rid of all NA values. Next, we must reformat Engine from a character vector presented with " cc" at the end to a numerical vector.
+
+Next, we select our variables. We will be using price (in dollars) as our response variable. These are the original vaiables in the data set:
+```{r}
+names(data)
+```
+
+## Variables (cont.)
+```{r, include=TRUE}
+data %>% 
+  na.omit() %>% 
+  filter(Seller.Type=="Individual", Engine!="", Drivetrain!="") %>% 
+  select(Price, Year, Kilometer, Engine, Seating.Capacity, Fuel.Tank.Capacity, Transmission, Drivetrain, Height, Width) %>% 
+  mutate(Engine=as.numeric(str_replace_all(Engine, "[ c]", "")))-> data2
+```
+
+We chose to focus on these variables, and plan to use Price as the response variable.
+```{r}
+names(data2)
+```
+
+
+## Data Cleaning
+Next, because we have two categorical variables which cannot be represented numerically, we must one-hot encode them. Those two variables are Transmission and Drivetrain. This process will automatically remove the existing Transmission and Drivetrain columns. In order to be able to calculate the regression, we will have to pick a baseline for each variable and remove it from our data. In our case, we will be setting automatic transmissions and front-wheel drive as our baselines, hence why we drop them with the subset function.
+
+```{r}
+data3 <- dummy_cols(.data=data2, select_columns=c("Transmission","Drivetrain"), remove_selected_columns=T)
+data3 = subset(data3, select=-c(Transmission_Automatic, Drivetrain_FWD))
+names(data3)
+```
+
+With all of our cleaning said and done, we can see our final columns above. Our final dataset has dimensions of `r dim(data3)`.
+
+## Exploratory Data Analysis
+
+```{r}
+plotvsprice <- function(x){
+  ggplot(data4)+
+    geom_point(mapping=aes(x, Price))+ xlab(colnames(mtcars))
+}
+
+yearplot <- ggplot(data3)+
+    geom_point(mapping=aes(Year, Price))
+
+kilometerplot <- ggplot(data3)+
+    geom_point(mapping=aes(Kilometer, Price))
+
+engineplot <- ggplot(data3)+
+    geom_point(mapping=aes(Engine, Price))
+
+fuelplot <- ggplot(data3)+
+    geom_point(mapping=aes(Fuel.Tank.Capacity, Price))
+
+```
+```{r}
+yearplot+kilometerplot+engineplot+fuelplot
+```
+
+
+## Exploratory Data Analysis (cont.)
+
+```{r}
+engineplot+fuelplot
+```
