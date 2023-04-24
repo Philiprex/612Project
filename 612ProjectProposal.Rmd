@@ -2,7 +2,9 @@
 title: "412/612 Project Proposal"
 author: "Anna Livingstone & Philip Eigen"
 date: "`r Sys.Date()`"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 For this project, we are looking at how a number of variables affect sale price of a used car between individuals. The original data for this project can be found [here](https://www.kaggle.com/datasets/nehalbirla/vehicle-dataset-from-cardekho?select=car+details+v4.csv).
@@ -10,7 +12,7 @@ For this project, we are looking at how a number of variables affect sale price 
 ```{r message=F, warning=F}
 library(tidyverse)
 library(fastDummies)
-data <- read.csv("C:/Users/pceig/Downloads/car details v4.csv")
+data <- read.csv("cardetailsv4.csv")
 ```
 
 We have to do a few things to clean the data and extract the information we want. First we get rid of all NA values. Next, we select our variables. We will be using price (in dollars) as out response variable, and year, kilometers (on the car), engine (size in cc), seating capacity, fuel tank capacity (in liters), transmission (manual vs. automatic), drivetrain (FWD, RWD, & AWD), height (in mm), and width (in mm). Next, we must reformat Engine from a character vector presented with " cc" at the end to a numerical vector.
@@ -31,3 +33,33 @@ data3 = subset(data3, select=-c(Transmission_Automatic, Drivetrain_FWD))
 names(data3)
 ```
 With all of our cleaning said and done, we can see our final columns above. Our final dataset has dimensions of `r dim(data3)`.
+
+First Model
+```{r}
+library(lbutils)
+library(broom)
+cm <- lm(data3, formula=Price~Year+Kilometer+Engine+Seating.Capacity+Fuel.Tank.Capacity+Height+Width+Transmission_Manual+Drivetrain_AWD+Drivetrain_RWD)
+tidy(cm)
+```
+Bad bad bad RvF
+```{r}
+ggplot(cm, aes(x=cm$fitted.values, y=cm$residuals)) +
+  geom_point()
+```
+Log-transformed price model
+```{r}
+tcm <- lm(data3, formula=log(Price)~Year+Kilometer+Engine+Seating.Capacity+Fuel.Tank.Capacity+Height+Width+Transmission_Manual+Drivetrain_AWD+Drivetrain_RWD)
+tidy(tcm)
+```
+
+Good good good RvF
+```{r}
+ggplot(tcm, aes(x=cm$fitted.values, y=tcm$residuals)) +
+  geom_point()
+```
+
+Low VIF means no multicollinearity means we can probably drop 
+```{r}
+olsrr::ols_vif_tol(tcm)
+```
+
