@@ -1,11 +1,136 @@
 ---
-title: "612 Project"
-author: "Philip Eigen"
+title: "412/612 Final Project"
+author: "Philip Eigen & Anna Livingstone"
 date: "`r Sys.Date()`"
-output: html_document
+output:
+  html_document:
+    code_folding: "hide"
+    toc: true
+    toc_float: true
+    code_download: true
 ---
-```{r}
-x <- c(10, 11, 12, 13)
-mean(x)
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning=FALSE, message=FALSE)
+```
+```{r message=F, warning=F}
+library(tidyverse)
+library(fastDummies)
+library(patchwork)
+library(plotly)
+library(gapminder)
+library(DT)
+library(ggthemes)
+library(GGally)
+options(DT.options=list(dom="t"))
+data <- read.csv("C:/Users/18582/OneDrive/Desktop/DATA 412/FinalProject/cardetailsv4.csv")
 ```
 
+# Dataset
+For this project, we looked at how a number of variables affect sale price of a used car between individuals. We used a dataset from Kaggle that has about 2,000 observations. The original data for this project can be found [here](https://www.kaggle.com/datasets/nehalbirla/vehicle-dataset-from-cardekho?select=car+details+v4.csv).
+
+# Data Cleaning
+
+We have to do a few things to clean the data and extract the information we want. First we get rid of all NA values. Next, we must reformat Engine from a character vector presented with " cc" at the end to a numerical vector.
+
+Next, we select our variables. We will be using price (in dollars) as our response variable. These are the original vaiables in the data set:
+```{r}
+names(data)
+```
+
+## Variables
+```{r, include=TRUE}
+data %>% 
+  na.omit() %>% 
+  filter(Seller.Type=="Individual", Engine!="", Drivetrain!="") %>% 
+  select(Price, Year, Kilometer, Engine, Seating.Capacity, Fuel.Tank.Capacity, Transmission, Drivetrain, Height, Width) %>% 
+  mutate(Engine=as.numeric(str_replace_all(Engine, "[ c]", "")))-> data2
+```
+
+
+We chose to focus on these variables, and plan to use Price as the response variable.
+```{r}
+names(data2)
+```
+
+
+## Creating Dummy Variables
+Next, because we have two categorical variables which cannot be represented numerically, we must one-hot encode them. Those two variables are Transmission and Drivetrain. This process will automatically remove the existing Transmission and Drivetrain columns. In order to be able to calculate the regression, we will have to pick a baseline for each variable and remove it from our data. In our case, we will be setting automatic transmissions and front-wheel drive as our baselines, hence why we drop them with the subset function.
+
+```{r}
+data3 <- dummy_cols(.data=data2, select_columns=c("Transmission","Drivetrain"), remove_selected_columns=T)
+data3 = subset(data3, select=-c(Transmission_Automatic, Drivetrain_FWD))
+names(data3)
+```
+
+With all of our cleaning said and done, we can see our final columns above. Our final dataset has dimensions of `r dim(data3)`.
+
+# Exploratory Data Analysis
+```{r}
+
+yearplot <- ggplot(data3)+
+    geom_histogram(mapping=aes(Year), fill= "red")
+
+kilometerplot <- ggplot(data3)+
+    geom_histogram(mapping=aes(Kilometer), fill="darkorange")
+
+engineplot <- ggplot(data3)+
+    geom_histogram(mapping=aes(Engine), fill="yellow")
+
+fuelplot <- ggplot(data3)+
+    geom_histogram(mapping=aes(Fuel.Tank.Capacity), fill="darkgreen")
+
+seatingplot <- ggplot(data3)+
+    geom_bar(mapping=aes(Seating.Capacity), fill="darkblue")
+
+heightplot <- ggplot(data3)+
+    geom_histogram(mapping=aes(Height), fill="purple")
+
+widthplot <- ggplot(data3)+
+    geom_histogram(mapping=aes(Width), fill="pink")
+
+```
+### Distributional Plots of Quantitative Variables
+```{r}
+yearplot+kilometerplot+engineplot+fuelplot+seatingplot+heightplot+widthplot
+```
+
+```{r}
+transmissionplot <- ggplot(data2)+
+  geom_bar(mapping=aes(Transmission, fill=Transmission))
+
+drivetrainplot <- ggplot(data2)+
+  geom_bar(mapping=aes(Drivetrain, fill=Drivetrain))
+```
+### Distributional Plots of Qualitative Variables
+```{r}
+transmissionplot+drivetrainplot
+```
+
+
+# First Model
+```{r warnings=FALSE}
+
+library(broom)
+cm <- lm(data3, formula=Price~Year+Kilometer+Engine+Seating.Capacity+Fuel.Tank.Capacity+Height+Width+Transmission_Manual+Drivetrain_AWD+Drivetrain_RWD)
+datatable(tidy(cm))
+```
+## RvF Plot Displaying Undesirable Behaviors
+```{r}
+ggplot(cm, aes(x=cm$fitted.values, y=cm$residuals)) +
+  geom_point()
+```
+
+# Second Model
+
+## Log-transformed price model
+```{r}
+tcm <- lm(data3, formula=log(Price)~Year+Kilometer+Engine+Seating.Capacity+Fuel.Tank.Capacity+Height+Width+Transmission_Manual+Drivetrain_AWD+Drivetrain_RWD)
+datatable(tidy(tcm))
+```
+
+## Log-Transformed RvF Plot Showing Appropriately Random Distribution & Constant Variance
+```{r}
+ggplot(tcm, aes(x=cm$fitted.values, y=tcm$residuals)) +
+  geom_point()
+```
